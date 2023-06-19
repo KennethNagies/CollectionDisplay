@@ -1,0 +1,10 @@
+# config files
+*.txt
+
+# Image files
+*.jpg
+*.bmp
+*.png
+
+# vim swap files
+*.swp
