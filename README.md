@@ -1,8 +1,8 @@
-#Collection Display
+# Collection Display
 
 A system for displaying cover art and other images from a  digital collection (Essentially one of those digital picture frames but tailored for my media collection).
 
-##Setup (Raspberry Pi OS):
+## Setup (Raspberry Pi OS):
 1. Enable SPI
    - `sudo raspi-config` -> Interface Options -> SPI -> yes
 2. Install python dependencies:
