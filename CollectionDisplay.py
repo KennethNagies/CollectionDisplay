@@ -30,7 +30,8 @@ BASE_DIRS_KEY = "base_dirs"
 COVER_DIRS_KEY = "cover_dirs"
 INCLUDE_KEY = "include"
 EXCLUDE_KEY = "exclude"
-DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", BASE_DIRS_KEY:[], COVER_DIRS_KEY:[], INCLUDE_KEY:[], EXCLUDE_KEY:[]}
+UPDATE_SECONDS_KEY = "update_seconds"
+DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", BASE_DIRS_KEY:[], COVER_DIRS_KEY:[], INCLUDE_KEY:[], EXCLUDE_KEY:[], UPDATE_SECONDS_KEY:3600}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -176,7 +177,9 @@ def main():
             logging.debug(f"Displaying: {cover_path}")
             displayImage(local_cover_path)
             previous_cover_path = cover_path
-            time.sleep(300)
+            update_seconds = config_values[UPDATE_SECONDS_KEY]
+            logging.debug(f"Sleeping for {update_seconds} seconds")
+            time.sleep(update_seconds)
     except KeyboardInterrupt:
         logging.info("Exiting for keyboard interrupt")
         display = DISPLAY_LIB.EPD()
