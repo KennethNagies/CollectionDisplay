@@ -9,6 +9,7 @@ import time
 from PIL import Image
 import traceback
 import random
+import re
 from ftplib import FTP
 import json
 from collections import deque
@@ -26,12 +27,12 @@ SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "bmp", "png"}
 FTP_SERVER_KEY = "ftp_server"
 FTP_USER_NAME_KEY = "ftp_user_name"
 FTP_USER_PASSWORD_KEY = "ftp_user_password"
-BASE_DIRS_KEY = "base_dirs"
-COVER_DIRS_KEY = "cover_dirs"
-INCLUDE_KEY = "include"
-EXCLUDE_KEY = "exclude"
+BASE_DIR_KEY = "base_dir"
+COVER_MATCHERS_KEY = "cover_matchers"
+INCLUDE_REGEXES_KEY = "include_regexes"
+EXCLUDE_REGEXES_KEY = "exclude_regexes"
 UPDATE_SECONDS_KEY = "update_seconds"
-DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", BASE_DIRS_KEY:[], COVER_DIRS_KEY:[], INCLUDE_KEY:[], EXCLUDE_KEY:[], UPDATE_SECONDS_KEY:3600}
+DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], UPDATE_SECONDS_KEY:3600}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -44,13 +45,15 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
         cover_paths = []
 
         # Traverse file tree to locate all cover images
-        for base_path in config_values[BASE_DIRS_KEY]:
+        for cover_matcher in config_values[COVER_MATCHERS_KEY]:
             base_mls_list = []
+            base_path = cover_matcher[BASE_DIR_KEY]
             for mls in ftp.mlsd(base_path):
                 base_mls_list.append(mls)
-            _processPath(config_values, ftp, base_path, base_mls_list, cover_paths)
+            _processPath(cover_matcher, ftp, base_path, base_mls_list, cover_paths)
 
         if len(cover_paths) == 0:
+            logging.debug("Found no cover paths")
             return ("", previous_cover_path)
 
         rand_index = random.randrange(len(cover_paths))
@@ -63,43 +66,51 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
         local_cover_path = os.path.join(LOCAL_PATH, local_cover_file_name)
         try:
             ftp.retrbinary(f"RETR {cover_path}", open(local_cover_path, 'wb').write)
-        except:
-            logging.error(f"Failed to retrieve file")
+        except Exception as exception:
+            logging.error(f"Failed to retrieve file for path {cover_path} due to exception [{exception}]")
             local_cover_path = ""
             cover_path = previous_cover_path
     return (local_cover_path, cover_path)
 
-def _processPath(config_values, ftp, path, mls_list, cover_paths):
-    include_list, exclude_list = config_values[INCLUDE_KEY], config_values[EXCLUDE_KEY]
-    for exclude_string in exclude_list:
-        if exclude_string in path:
-            logging.debug(f"excluding path [{path}] due to exclude string \"{exclude_string}\"")
-            return
+def _processPath(cover_matcher, ftp, path, mls_list, cover_paths):
+    include_regexes, exclude_regexes = cover_matcher[INCLUDE_REGEXES_KEY], cover_matcher[EXCLUDE_REGEXES_KEY]
+    matched_pattern = None
+    for exclude_pattern in exclude_regexes:
+        if re.search(exclude_pattern, path) != None:
+            matched_pattern = pattern
+            break
+    if matched_pattern != None:
+        logging.debug(f"Excluding path [{path}] due to matching pattern [{matched_pattern}]")
+        return
+
     if len(mls_list) == 0:
         return
     for mls in mls_list:
         if mls[1]['type'] != 'dir':
             directory_name = os.path.basename(path)
-            is_cover_dir = directory_name in config_values[COVER_DIRS_KEY]
             file_name = mls[0]
             split_file_name = file_name.split('.')
             is_supported_image = len(split_file_name) > 1 and split_file_name[-1] in SUPPORTED_IMAGE_EXTENSIONS
-            is_included = len(include_list) == 0
             file_path = os.path.join(path, file_name)
-            for include_string in include_list:
-                if include_string in file_path:
+            is_included = False
+            for include_pattern in include_regexes:
+                if re.search(include_pattern, file_path):
                     is_included = True
                     break
-            if is_cover_dir and is_supported_image and is_included:
+            if is_supported_image and is_included:
                 logging.debug(f"appending cover: {file_path}")
                 cover_paths.append(file_path)
             continue
 
         sub_path = os.path.join(path, mls[0])
         sub_mls_list = []
-        for sub_mls in ftp.mlsd(sub_path):
-            sub_mls_list.append(sub_mls)
-        _processPath(config_values, ftp, sub_path, sub_mls_list, cover_paths)
+        try:
+            for sub_mls in ftp.mlsd(sub_path):
+                sub_mls_list.append(sub_mls)
+        except:
+            logging.error(f"failed to get mlsd for [{sub_path}]")
+            continue
+        _processPath(cover_matcher, ftp, sub_path, sub_mls_list, cover_paths)
 
 
 def getRandomLocalCoverPath(previous_cover_path):
