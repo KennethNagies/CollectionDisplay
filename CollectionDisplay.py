@@ -41,29 +41,29 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
     if (ftp_server == ""):
         raise ValueError("ftp_server not set. Update config.txt")
     ftp_user_name, ftp_user_password = config_values[FTP_USER_NAME_KEY], config_values[FTP_USER_PASSWORD_KEY]
-    with FTP(ftp_server, ftp_user_name, ftp_user_password) as ftp:
-        cover_paths = []
-
-        # Traverse file tree to locate all cover images
-        for cover_matcher in config_values[COVER_MATCHERS_KEY]:
-            base_mls_list = []
-            base_path = cover_matcher[BASE_DIR_KEY]
+    cover_paths = []
+    # Traverse file tree to locate all cover images
+    for cover_matcher in config_values[COVER_MATCHERS_KEY]:
+        base_mls_list = []
+        base_path = cover_matcher[BASE_DIR_KEY]
+        with FTP(ftp_server, ftp_user_name, ftp_user_password) as ftp:
             for mls in ftp.mlsd(base_path):
                 base_mls_list.append(mls)
             _processPath(cover_matcher, ftp, base_path, base_mls_list, cover_paths)
 
-        if len(cover_paths) == 0:
-            logging.debug("Found no cover paths")
-            return ("", previous_cover_path)
+    if len(cover_paths) == 0:
+        logging.debug("Found no cover paths")
+        return ("", previous_cover_path)
 
-        rand_index = random.randrange(len(cover_paths))
+    rand_index = random.randrange(len(cover_paths))
+    cover_path = cover_paths[rand_index]
+    if (cover_path == previous_cover_path):
+        rand_index = (rand_index + 1) % len(cover_paths)
         cover_path = cover_paths[rand_index]
-        if (cover_path == previous_cover_path):
-            rand_index = (rand_index + 1) % len(cover_paths)
-            cover_path = cover_paths[rand_index]
 
-        local_cover_file_name = f"{LOCAL_COVER_BASE_FILE_NAME}.{cover_path.split('.')[-1]}"
-        local_cover_path = os.path.join(LOCAL_PATH, local_cover_file_name)
+    local_cover_file_name = f"{LOCAL_COVER_BASE_FILE_NAME}.{cover_path.split('.')[-1]}"
+    local_cover_path = os.path.join(LOCAL_PATH, local_cover_file_name)
+    with FTP(ftp_server, ftp_user_name, ftp_user_password) as ftp:
         try:
             ftp.retrbinary(f"RETR {cover_path}", open(local_cover_path, 'wb').write)
         except Exception as exception:
