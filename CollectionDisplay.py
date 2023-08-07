@@ -72,7 +72,14 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
             cover_path = previous_cover_path
     return (local_cover_path, cover_path)
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
+
 def _processPath(cover_matcher, ftp, path, mls_list, cover_paths):
+    mls_list = sorted(mls_list, key=lambda mls: natural_keys(mls[0]))
     include_regexes, exclude_regexes = cover_matcher[INCLUDE_REGEXES_KEY], cover_matcher[EXCLUDE_REGEXES_KEY]
     matched_pattern = None
     for exclude_pattern in exclude_regexes:
