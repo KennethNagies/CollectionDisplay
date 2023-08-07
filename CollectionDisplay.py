@@ -32,7 +32,11 @@ COVER_MATCHERS_KEY = "cover_matchers"
 INCLUDE_REGEXES_KEY = "include_regexes"
 EXCLUDE_REGEXES_KEY = "exclude_regexes"
 UPDATE_SECONDS_KEY = "update_seconds"
-DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], UPDATE_SECONDS_KEY:3600}
+SORT_ORDER_KEY = "sort_order"
+SORT_ORDER_IN_ORDER = "in_order"
+SORT_ORDER_REVERSE = "reverse"
+SORT_ORDER_RANDOM = "random"
+DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,12 +59,24 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
         logging.debug("Found no cover paths")
         return ("", previous_cover_path)
 
-    rand_index = random.randrange(len(cover_paths))
-    cover_path = cover_paths[rand_index]
-    if (cover_path == previous_cover_path):
-        rand_index = (rand_index + 1) % len(cover_paths)
-        cover_path = cover_paths[rand_index]
+    index = -1
+    sort_order = config_values[SORT_ORDER_KEY]
+    found_index = -1
+    try:
+        found_index = cover_paths.index(previous_cover_path)
+    except ValueError:
+        found_index = -1
 
+    if sort_order == SORT_ORDER_IN_ORDER:
+        index = found_index + 1 if found_index >= 0 else 0
+    elif sort_order == SORT_ORDER_REVERSE:
+        index = found_index - 1 if found_index >= 0 else len(cover_paths) - 1
+    elif sort_order ==  SORT_ORDER_RANDOM:
+        index = random.randrange(len(cover_paths))
+    else:
+        raise ValueError("sort_order not recognized. Update config.txt")
+
+    cover_path = cover_paths[index % len(cover_paths)]
     local_cover_file_name = f"{LOCAL_COVER_BASE_FILE_NAME}.{cover_path.split('.')[-1]}"
     local_cover_path = os.path.join(LOCAL_PATH, local_cover_file_name)
     with FTP(ftp_server, ftp_user_name, ftp_user_password) as ftp:
