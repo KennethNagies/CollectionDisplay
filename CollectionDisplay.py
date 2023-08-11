@@ -36,7 +36,12 @@ SORT_ORDER_KEY = "sort_order"
 SORT_ORDER_IN_ORDER = "in_order"
 SORT_ORDER_REVERSE = "reverse"
 SORT_ORDER_RANDOM = "random"
-DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600}
+ORIENTATION_KEY = "orientation"
+ORIENTATION_PORTRAIT = "portrait"
+ORIENTATION_LANDSCAPE = "landscape"
+ORIENTATION_PORTRAIT_FLIPPED = "portrait_flipped"
+ORIENTATION_LANDSCAPE_FLIPPED = "landscape_flipped"
+DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600, ORIENTATION_KEY:ORIENTATION_PORTRAIT}
 
 logging.basicConfig(level=logging.INFO)
 
@@ -172,15 +177,32 @@ def fitToDisplay(image, display_size):
     return fit_image
 
 
-def displayImage(image_path):
+def rotateImage(image, config_values):
+    rotate_degrees = -1
+    orientation = config_values[ORIENTATION_KEY]
+    if orientation == ORIENTATION_PORTRAIT:
+        rotate_degrees = 0
+    elif orientation == ORIENTATION_LANDSCAPE:
+        rotate_degrees = 90
+    elif orientation == ORIENTATION_PORTRAIT_FLIPPED:
+        rotate_degrees = 180
+    elif orientation == ORIENTATION_LANDSCAPE_FLIPPED:
+        rotate_degrees = 270
+    else:
+        raise ValueError(f"orientation \"{orientation}\" not recognized")
+    return image.rotate(rotate_degrees, expand=True)
+
+
+def displayImage(image_path, config_values):
     if (not os.path.exists(image_path)):
         logging.error(f"displayImage: no file exists for path {image_path}")
         return
     display = DISPLAY_LIB.EPD()
     display.init()
     with Image.open(image_path) as image:
-        with fitToDisplay(image, (DISPLAY_WIDTH, DISPLAY_HEIGHT)) as fit_image:
-            display.display(display.getbuffer(fit_image))
+        image = rotateImage(image, config_values)
+        image = fitToDisplay(image, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        display.display(display.getbuffer(image))
     display.sleep()
 
 def createConfig():
@@ -209,7 +231,7 @@ def main():
                     os.remove(old_cover_path)
             local_cover_path, cover_path = getRandomCoverImageViaFTP(config_values, previous_cover_path)
             logging.debug(f"Displaying: {cover_path}")
-            displayImage(local_cover_path)
+            displayImage(local_cover_path, config_values)
             previous_cover_path = cover_path
             update_seconds = config_values[UPDATE_SECONDS_KEY]
             logging.debug(f"Sleeping for {update_seconds} seconds")
