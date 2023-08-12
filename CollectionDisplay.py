@@ -120,7 +120,7 @@ def _processPath(cover_matcher, ftp, path, mls_list, cover_paths):
             split_file_name = file_name.split('.')
             is_supported_image = len(split_file_name) > 1 and split_file_name[-1] in SUPPORTED_IMAGE_EXTENSIONS
             file_path = os.path.join(path, file_name)
-            is_included = False
+            is_included = False if len(include_regexes) > 0 else True
             for include_pattern in include_regexes:
                 if re.search(include_pattern, file_path):
                     is_included = True
