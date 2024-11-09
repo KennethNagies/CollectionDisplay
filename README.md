@@ -8,7 +8,7 @@ A system for displaying cover art and other images from a  digital collection (E
 2. Install python dependencies:
    - `sudo apt-get install python3-pip python3-pil python3-numpy`
 3. Install pip modules:
-   -  `pip3 install RPi.GPIO spidev waveshare-epaper`
+   -  `pip3 install RPi.GPIO spidev waveshare-epaper pillow`
 4. Reboot
 
 ## Usage

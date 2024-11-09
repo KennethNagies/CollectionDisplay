@@ -18,10 +18,9 @@ DISPLAY_WIDTH = 448
 DISPLAY_HEIGHT = 600
 LOCAL_PATH = os.path.dirname(os.path.realpath(__file__))
 LOCAL_COVER_BASE_FILE_NAME = "cover"
-CONFIG_FILE_NAME = "config.txt"
+CONFIG_FILE_NAME = "config.json"
 BASE_GAMES_DIR = "Media/Games"
 COVERS_DIR_NAME = "Covers"
-DISPLAY_LIB = epaper.epaper("epd5in65f")
 SUPPORTED_IMAGE_EXTENSIONS = {"jpg", "bmp", "png"}
 
 FTP_SERVER_KEY = "ftp_server"
@@ -41,14 +40,49 @@ ORIENTATION_PORTRAIT = "portrait"
 ORIENTATION_LANDSCAPE = "landscape"
 ORIENTATION_PORTRAIT_FLIPPED = "portrait_flipped"
 ORIENTATION_LANDSCAPE_FLIPPED = "landscape_flipped"
-DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600, ORIENTATION_KEY:ORIENTATION_PORTRAIT}
+DISPLAY_TYPE_KEY = "display_type"
+DISPLAY_TYPE_DEBUG = "debug"
+DISPLAY_TYPE_EPD_5IN_65F = "epd5in65f"
+DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600, ORIENTATION_KEY:ORIENTATION_PORTRAIT, DISPLAY_TYPE_KEY:DISPLAY_TYPE_DEBUG}
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
+
+class DebugEPDConfig:
+    def module_exit(self):
+        logging.debug("DebugEPDConfig.module_exit()")
+
+class DebugDisplay:
+    def init(self):
+        logging.debug("DebugDisplay.init()")
+
+    def Clear(self):
+        logging.debug("DebugDisplay.clear()")
+
+    def sleep(self):
+        logging.debug("DebugDisplay.sleep()")
+
+    def display(self, buffer):
+        logging.debug("DebugDisplay.display()")
+
+    def getbuffer(self, image):
+        logging.debug("DebugDisplay.getBuffer()")
+        return None
+
+class DebugDisplayLib:
+
+    epdconfig = DebugEPDConfig()
+
+    def EPD(self):
+        logging.debug("DebugDisplayLib.EPD()")
+        return DebugDisplay()
+
+DISPLAY_LIB = DebugDisplayLib()
+SUPPORTED_DISPLAY_TYPES = [DISPLAY_TYPE_DEBUG, DISPLAY_TYPE_EPD_5IN_65F]
 
 def getRandomCoverImageViaFTP(config_values, previous_cover_path):
     ftp_server = config_values[FTP_SERVER_KEY]
     if (ftp_server == ""):
-        raise ValueError("ftp_server not set. Update config.txt")
+        raise ValueError(f"ftp_server not set. Update {CONFIG_FILE_NAME}")
     ftp_user_name, ftp_user_password = config_values[FTP_USER_NAME_KEY], config_values[FTP_USER_PASSWORD_KEY]
     cover_paths = []
     # Traverse file tree to locate all cover images
@@ -79,7 +113,7 @@ def getRandomCoverImageViaFTP(config_values, previous_cover_path):
     elif sort_order ==  SORT_ORDER_RANDOM:
         index = random.randrange(len(cover_paths))
     else:
-        raise ValueError("sort_order not recognized. Update config.txt")
+        raise ValueError(f"sort_order not recognized. Update {CONFIG_FILE_NAME}")
 
     cover_path = cover_paths[index % len(cover_paths)]
     local_cover_file_name = f"{LOCAL_COVER_BASE_FILE_NAME}.{cover_path.split('.')[-1]}"
@@ -222,6 +256,17 @@ def main():
         return
 
     config_values = readConfig()
+
+    display_type = config_values[DISPLAY_TYPE_KEY]
+    if (display_type == DISPLAY_TYPE_DEBUG):
+        logging.basicConfig(level=logging.DEBUG)
+        DISPLAY_LIB = DebugDisplayLib()
+    elif (display_type in SUPPORTED_DISPLAY_TYPES):
+        DISPLAY_LIB = epaper.epaper(display_type)
+    else:
+        logging.error(f"Unrecognized display type: {display_type if display_type else "UNDEFINED"}")
+        return
+
     try:
         previous_cover_path = ""
         while (True):

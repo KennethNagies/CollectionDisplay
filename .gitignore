@@ -1,5 +1,5 @@
 # config files
-*.txt
+*.json
 
 # Image files
 *.jpg
