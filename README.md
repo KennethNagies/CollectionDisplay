@@ -13,5 +13,5 @@ A system for displaying cover art and other images from a  digital collection (E
 
 ## Usage
 1. Run CollectionDisplay.py once to generate an empty config file
-2. Fill out config.txt
+2. Fill out config.json
 3. Run CollectionDisplay.py
