@@ -43,9 +43,8 @@ ORIENTATION_LANDSCAPE_FLIPPED = "landscape_flipped"
 DISPLAY_TYPE_KEY = "display_type"
 DISPLAY_TYPE_DEBUG = "debug"
 DISPLAY_TYPE_EPD_5IN_65F = "epd5in65f"
+LOG_LEVEL_KEY = "log_level"
 DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600, ORIENTATION_KEY:ORIENTATION_PORTRAIT, DISPLAY_TYPE_KEY:DISPLAY_TYPE_DEBUG}
-
-logging.basicConfig(level=logging.DEBUG)
 
 class DebugEPDConfig:
     def module_exit(self):
@@ -246,8 +245,31 @@ def createConfig():
 def readConfig():
     with open(os.path.join(LOCAL_PATH, CONFIG_FILE_NAME), 'r', encoding="utf-8") as config_file:
         config_values = json.load(config_file)
-    logging.debug(config_values)
     return config_values
+
+def initLogging(config_values):
+    log_level_map = logging.getLevelNamesMapping()
+    log_level_string = config_values[LOG_LEVEL_KEY] if LOG_LEVEL_KEY in config_values else logging.getLevelName(logging.INFO)
+    if (log_level_string):
+        log_level = log_level_map[log_level_string] if log_level_string in log_level_map else logging.INFO
+        logging.basicConfig(level=log_level)
+
+        if (log_level_string not in log_level_map):
+            logging.error(f"Unrecognized logging level: {log_level}. Supported levels are: {log_level_map.keys()}")
+            return False
+    return True
+        
+def initDisplay(config_values):
+    display_type = config_values[DISPLAY_TYPE_KEY]
+    if (display_type == DISPLAY_TYPE_DEBUG):
+        logging.basicConfig(level=logging.DEBUG)
+        DISPLAY_LIB = DebugDisplayLib()
+    elif (display_type in SUPPORTED_DISPLAY_TYPES):
+        DISPLAY_LIB = epaper.epaper(display_type)
+    else:
+        logging.error(f"Unrecognized display type: {display_type if display_type else "UNDEFINED"}")
+        return False
+    return True
 
 def main():
     if (not os.path.exists(os.path.join(LOCAL_PATH, CONFIG_FILE_NAME))):
@@ -257,14 +279,7 @@ def main():
 
     config_values = readConfig()
 
-    display_type = config_values[DISPLAY_TYPE_KEY]
-    if (display_type == DISPLAY_TYPE_DEBUG):
-        logging.basicConfig(level=logging.DEBUG)
-        DISPLAY_LIB = DebugDisplayLib()
-    elif (display_type in SUPPORTED_DISPLAY_TYPES):
-        DISPLAY_LIB = epaper.epaper(display_type)
-    else:
-        logging.error(f"Unrecognized display type: {display_type if display_type else "UNDEFINED"}")
+    if (not initLogging(config_values)) or (not initDisplay(config_values)):
         return
 
     try:
