@@ -13,9 +13,16 @@ import re
 from ftplib import FTP
 import json
 from collections import deque
+from pathlib import Path
 
-DISPLAY_WIDTH = 448
-DISPLAY_HEIGHT = 600
+# add the epd13in3E lib directory to the path
+epd13in3E_libDir = Path(__file__).resolve().parent / "epd13in3E"
+sys.path.insert(0, str(epd13in3E_libDir))
+
+import epd13in3E
+
+DISPLAY_WIDTH = 1200
+DISPLAY_HEIGHT = 1600
 LOCAL_PATH = os.path.dirname(os.path.realpath(__file__))
 LOCAL_COVER_BASE_FILE_NAME = "cover"
 CONFIG_FILE_NAME = "config.json"
@@ -43,8 +50,11 @@ ORIENTATION_LANDSCAPE_FLIPPED = "landscape_flipped"
 DISPLAY_TYPE_KEY = "display_type"
 DISPLAY_TYPE_DEBUG = "debug"
 DISPLAY_TYPE_EPD_5IN_65F = "epd5in65f"
+DISPLAY_TYPE_EPD_13IN_3E = "epd13in3E"
 LOG_LEVEL_KEY = "log_level"
 DEFAULT_CONFIG_VALUES = {FTP_SERVER_KEY:"", FTP_USER_NAME_KEY:"", FTP_USER_PASSWORD_KEY:"", COVER_MATCHERS_KEY:[{BASE_DIR_KEY:"", INCLUDE_REGEXES_KEY:[".*"], EXCLUDE_REGEXES_KEY:[]}], SORT_ORDER_KEY:SORT_ORDER_RANDOM, UPDATE_SECONDS_KEY:3600, ORIENTATION_KEY:ORIENTATION_PORTRAIT, DISPLAY_TYPE_KEY:DISPLAY_TYPE_DEBUG}
+
+DISPLAY_LIB = None
 
 class DebugEPDConfig:
     def module_exit(self):
@@ -75,8 +85,6 @@ class DebugDisplayLib:
         logging.debug("DebugDisplayLib.EPD()")
         return DebugDisplay()
 
-DISPLAY_LIB = DebugDisplayLib()
-SUPPORTED_DISPLAY_TYPES = [DISPLAY_TYPE_DEBUG, DISPLAY_TYPE_EPD_5IN_65F]
 
 def getRandomCoverImageViaFTP(config_values, previous_cover_path):
     ftp_server = config_values[FTP_SERVER_KEY]
@@ -260,11 +268,17 @@ def initLogging(config_values):
     return True
         
 def initDisplay(config_values):
+    global DISPLAY_LIB
     display_type = config_values[DISPLAY_TYPE_KEY]
     if (display_type == DISPLAY_TYPE_DEBUG):
+        logging.info("initDisplay: using debug display")
         logging.basicConfig(level=logging.DEBUG)
         DISPLAY_LIB = DebugDisplayLib()
-    elif (display_type in SUPPORTED_DISPLAY_TYPES):
+    elif (display_type == DISPLAY_TYPE_EPD_13IN_3E):
+        logging.info("initDisplay: using 13 inch display")
+        DISPLAY_LIB = epd13in3E
+    elif (display_type == DISPLAY_TYPE_EPD_5IN_65F):
+        logging.info("initDisplay: using 5.65 inch display")
         DISPLAY_LIB = epaper.epaper(display_type)
     else:
         logging.error(f"Unrecognized display type: {display_type if display_type else "UNDEFINED"}")
